@@ -38,7 +38,7 @@ exports.processUploads = functions.storage.object().onFinalize((object, context)
 
   const originalPath = object.name; // Full path --> folder/subfolder/picture.png
   const originalDirectory = path.dirname(originalPath); // Directory --> folder/subfolder
-  const originalFile = path.basename(originalPath);  // File --> picture.png
+  const originalFile = path.basename(originalPath); // File --> picture.png
   const originalFileBare = path.basename(originalPath, path.extname(originalPath)); // File no ext --> picture
 
   const pathPieces = originalDirectory.split('/'); // [ '9AnnEvelbPM6Y8dkhK6V', 'reports', 'L7yrlcpDQRePkFMDMDTD', 'mi4FaNOkZIzKiyfJWjvH', '2sVbq' ]
@@ -46,6 +46,7 @@ exports.processUploads = functions.storage.object().onFinalize((object, context)
   const fieldId = pathPieces[3];
   const fileId = pathPieces[4];
 
+  // Exit early under these circumstances
   if (resourceState === 'not_exists') {
     //console.log('This is a deletion event.');
     return null;
@@ -61,6 +62,16 @@ exports.processUploads = functions.storage.object().onFinalize((object, context)
     return null;
   }
 
+  if (originalFile.startsWith(COMPRESSED_PREFIX)) {
+    //console.log('Already compressed.');
+    return null;
+  }
+
+  if (originalFile.startsWith(THUMB_PREFIX)) {
+    //console.log('Already a Thumbnail.');
+    return null;
+  }
+
   if (contentType.startsWith('image/')) {
     // This is an image
     const newFile = COMPRESSED_PREFIX + originalFileBare + JPEG_EXTENSION;
@@ -70,24 +81,10 @@ exports.processUploads = functions.storage.object().onFinalize((object, context)
     const tempLocalPath = path.join(os.tmpdir(), originalFile);
     const tempLocalPathThumb = path.join(os.tmpdir(), newFileThumb);
 
-    // Exit early under these circumstances
-    if (!contentType.startsWith('image/')) {
-      //console.log('This is not an image.');
-      return null;
-    }
-
-    if (originalFile.startsWith(COMPRESSED_PREFIX)) {
-      //console.log('Already compressed.');
-      return null;
-    }
-
-    if (originalFile.startsWith(THUMB_PREFIX)) {
-      //console.log('Already a Thumbnail.');
-      return null;
-    }
-
     // Storage spots
-    const metadata = { contentType: contentType };
+    const metadata = {
+      contentType: contentType
+    };
     const fullPhoto = bucket.file(newPath);
     const thumbPhoto = bucket.file(newPathThumb);
 
@@ -186,8 +183,3 @@ exports.processUploads = functions.storage.object().onFinalize((object, context)
     });
   }
 });
-
-
-
-
-
